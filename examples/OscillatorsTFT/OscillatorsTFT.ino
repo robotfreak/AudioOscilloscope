@@ -55,6 +55,18 @@ AudioConnection          patchCord12(mixer2, 0, scope2, 0);
 AudioControlSGTL5000     sgtl5000_1;     //xy=507,322
 // GUItool: end automatically generated code
 
+#define NO_OF_BUFFERS 8
+int pbCount = 0;
+int cbCount = 1;
+int16_t prevBufferLt[NO_OF_BUFFERS][AUDIO_BLOCK_SAMPLES * NO_OF_BLOCKS];
+int16_t prevBufferRt[NO_OF_BUFFERS][AUDIO_BLOCK_SAMPLES * NO_OF_BLOCKS];
+
+void initPrevBuffer(void) {
+  memset(&prevBufferLt[0][0], 0, NO_OF_BUFFERS*AUDIO_BLOCK_SAMPLES*NO_OF_BLOCKS*2);  
+  memset(&prevBufferRt[0][0], 0, NO_OF_BUFFERS*AUDIO_BLOCK_SAMPLES*NO_OF_BLOCKS*2); 
+  pbCount = 0; 
+  cbCount = 1;
+}
 void plotDataPoints(void)
 {
   int x;
@@ -84,6 +96,87 @@ void plotXYDataPoints(void)
   }
 }
 
+void plot2ChanOsci(void)
+{
+  int x;
+  int lt,rt;
+  int oldlt, oldrt;
+
+  if (scope1.available())
+    scope1.update();
+  if (scope2.available())
+    scope2.update();
+  //tft.fillScreen(ILI9341_BLACK);
+  for (x = 0; x < 256; x++) {
+    if (x % 8 == 0) {
+      tft.drawPixel(x + 20, 64, ILI9341_WHITE);
+      tft.drawPixel(x + 20, 192, ILI9341_WHITE);
+    }
+    oldlt = prevBufferLt[cbCount][x];
+    tft.drawPixel(x + 20, oldlt + 64, ILI9341_BLACK);
+    oldrt = prevBufferRt[cbCount][x];
+    tft.drawPixel(x + 20, oldrt + 192, ILI9341_BLACK);
+
+    lt = scope1.buffer[x] >> 8;;
+    tft.drawPixel(x + 20, lt + 64, ILI9341_GREEN);
+    rt = scope2.buffer[x] >> 8;;
+    tft.drawPixel(x + 20, rt + 192, ILI9341_GREEN);
+    prevBufferLt[pbCount][x] = lt;
+    prevBufferRt[pbCount][x] = rt;
+  }
+  pbCount++;
+  if (pbCount >= NO_OF_BUFFERS) pbCount = 0;
+  cbCount++;
+  if (cbCount >= NO_OF_BUFFERS) cbCount = 0;
+
+}
+
+void plotGoniometer(void)
+{
+  int i, l;
+  int x = 0;
+  int y = 0;
+  int newx, newy;
+  int oldx, oldy;
+
+  if (scope1.available())
+    scope1.update();
+  if (scope2.available())
+    scope2.update();
+  //tft.fillRect(0, 0, 256, 240, ILI9341_BLACK);
+  //c1 = scope1.getCount();
+  //c2 = scope2.getCount();
+  for (i = 0; i < 256; i++) {
+    x = (scope1.buffer[i] >> 8);
+    y = (scope2.buffer[i] >> 8);
+    newx = x * 29 / 41 - y * 29 / 41;
+    newy = y * 29 / 41 + x * 29 / 41;
+    //x = (scope1.buffer[i] >> 8);
+    //y = (scope2.buffer][i] >> 8);
+    oldx = prevBufferLt[cbCount][i];
+    oldy = prevBufferRt[cbCount][i];
+    tft.drawPixel(oldx + 128, oldy + 128, ILI9341_BLACK);
+    
+    tft.drawPixel(newx + 128, newy + 128, ILI9341_GREEN);
+    prevBufferLt[pbCount][i] = newx;
+    prevBufferRt[pbCount][i] = newy;
+   
+    if (i % 8 == 0) {
+      tft.drawPixel(i, 128, ILI9341_WHITE);
+    }
+    if (i == 128) {
+      for (l = 0; l < 240; l += 8) {
+        tft.drawPixel(i, l, ILI9341_WHITE);
+      }
+    }
+  }
+  pbCount++;
+  if (pbCount >= NO_OF_BUFFERS) pbCount = 0;
+  cbCount++;
+  if (cbCount >= NO_OF_BUFFERS) cbCount = 0;
+
+}
+
 void setup() {
   Serial.begin(9600);
   tft.begin();
@@ -93,6 +186,7 @@ void setup() {
   AudioMemory(20);
   sgtl5000_1.enable();
   sgtl5000_1.volume(0.32);
+  initPrevBuffer();
   
   pinMode(0, INPUT_PULLUP);
   pinMode(1, INPUT_PULLUP);
@@ -218,8 +312,10 @@ void loop() {
   sine_fm1.frequency(knob3 * 1500 + 50);
   sine1.frequency(knob3 * 1500 + 50);
 
-  scope1.update();
-  scope2.update();
-  plotXYDataPoints();
+  //scope1.update();
+  //scope2.update();
+  //plotXYDataPoints();
+
+  plot2ChanOsci();
   
 }

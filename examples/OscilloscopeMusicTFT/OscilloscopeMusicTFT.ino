@@ -35,8 +35,22 @@ AudioControlSGTL5000     sgtl5000_1;     //xy=302,184
 // GUItool: end automatically generated code
 
 
+#define NO_OF_BUFFERS 8
+#define BUFFER_SIZE (AUDIO_BLOCK_SAMPLES * NO_OF_BLOCKS)
+int pbCount = 0;
+int cbCount = 1;
+int16_t prevBufferLt[NO_OF_BUFFERS][BUFFER_SIZE];
+int16_t prevBufferRt[NO_OF_BUFFERS][BUFFER_SIZE];
+
 const int myInput = AUDIO_INPUT_LINEIN;
 //const int myInput = AUDIO_INPUT_MIC;
+
+void initPrevBuffer(void) {
+  memset(&prevBufferLt[0][0], 0, NO_OF_BUFFERS*BUFFER_SIZE*2);  
+  memset(&prevBufferRt[0][0], 0, NO_OF_BUFFERS*BUFFER_SIZE*2); 
+  pbCount = 0; 
+  cbCount = 1;
+}
 
 void plotXYDataPoints(void)
 {
@@ -56,6 +70,53 @@ void plotXYDataPoints(void)
   }
 }
 
+void plotXY(void)
+{
+  int i, l;
+  int x = 0;
+  int y = 0;
+  int newx, newy;
+  int oldx, oldy;
+
+  if (scope1.available())
+    scope1.update();
+  if (scope2.available())
+    scope2.update();
+  //tft.fillRect(0, 0, 256, 240, ILI9341_BLACK);
+  //c1 = scope1.getCount();
+  //c2 = scope2.getCount();
+  for (i = 0; i < BUFFER_SIZE; i++) {
+    x = (scope1.buffer[i] >> 8);
+    y = (scope2.buffer[i] >> 8);
+    //newx = x * 29 / 41 - y * 29 / 41;
+    //newy = y * 29 / 41 + x * 29 / 41;
+    //x = (scope1.buffer[i] >> 8);
+    //y = (scope2.buffer][i] >> 8);
+    oldx = prevBufferLt[cbCount][i];
+    oldy = prevBufferRt[cbCount][i];
+    tft.drawPixel(oldx + 128, oldy + 128, ILI9341_BLACK);
+    
+    tft.drawPixel(x + 128, y + 128, ILI9341_GREEN);
+    prevBufferLt[pbCount][i] = x;
+    prevBufferRt[pbCount][i] = y;
+  /* 
+    if (i % 8 == 0) {
+      tft.drawPixel(i, 128, ILI9341_WHITE);
+    }
+    if (i == 128) {
+      for (l = 0; l < 240; l += 8) {
+        tft.drawPixel(i, l, ILI9341_WHITE);
+      }
+    }
+ */   
+  }
+  pbCount++;
+  if (pbCount >= NO_OF_BUFFERS) pbCount = 0;
+  cbCount++;
+  if (cbCount >= NO_OF_BUFFERS) cbCount = 0;
+
+}
+
 void setup() {
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
@@ -69,15 +130,16 @@ void setup() {
   sgtl5000_1.enable();
   sgtl5000_1.inputSelect(myInput);
   sgtl5000_1.volume(0.5);
+  initPrevBuffer();
 }
 
 elapsedMillis volmsec=0;
 
 void loop() {
-  scope1.update();
-  scope2.update();
-  plotXYDataPoints();
-
+  //scope1.update();
+  //scope2.update();
+  //plotXYDataPoints();
+  plotXY();
   // every 50 ms, adjust the volume
   if (volmsec > 50) {
     float vol = analogRead(15);
