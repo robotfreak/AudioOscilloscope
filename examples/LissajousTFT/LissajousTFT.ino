@@ -1,3 +1,9 @@
+/* LissajousTFT: shows lissajous figures on a TFT screen
+* two sinus waveforms are generated with different parameters
+* The audio streams are used as source for the Goniometer.
+* Uses two AudioAnalyzeOscilloscope objects with 1024 audio sample depth
+*
+* Example based on: */
 // Advanced Microcontroller-based Audio Workshop
 //
 // http://www.pjrc.com/store/audio_tutorial_kit.html
@@ -109,6 +115,9 @@ void plotGoniometer(void)
   for (i = 0; i < 256; i++) {
     x = (scope1.buffer[i] >> 8);
     y = (scope2.buffer[i] >> 8);
+    /* performs an approximated 45 degree pixel shift */
+    /* newX = cos(angle)*x - sin(angle)*y */
+    /* newY = sin(angle)*x + cos(angle)*y */
     newx = x * 29 / 41 - y * 29 / 41;
     newy = y * 29 / 41 + x * 29 / 41;
     //x = (scope1.buffer[i] >> 8);
@@ -184,7 +193,7 @@ void loop() {
   button0.update();
   button1.update();
   button2.update();
-
+#if 0
   currentMillis = millis();
   if (currentMillis - previousMillis > 2000)
   {
@@ -218,7 +227,7 @@ void loop() {
     }
     
   }
-/*
+#endif
   // Left changes the type of control waveform
   if (button0.fallingEdge()) {
     Serial.print("Control waveform: ");
@@ -240,15 +249,15 @@ void loop() {
     }
     waveform1.begin(waveform_type);
   }
-*/
+
   // use the knobs to adjust parameters
   float knob1 = (float)analogRead(A1) / 1280.0;
   float knob2 = (float)analogRead(A2) / 1023.0;
   float knob3 = (float)analogRead(A3) / 1023.0;
   sgtl5000_1.volume(knob1);
   Serial.println(knob1);
-  //waveform1.frequency(360 * knob2 + 0.25);
-  //waveform2.frequency(360 * knob3 + 0.25);
+  waveform1.frequency(360 * knob2 + 0.25);
+  waveform2.frequency(360 * knob3 + 0.25);
 
 //  scope1.update();
 //  scope2.update();

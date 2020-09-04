@@ -1,9 +1,11 @@
 /*
- * A simple hardware test which receives audio from the audio shield
+ * Oscilloscope Music: show oscilloscope music on a TFT screen
+ * Receives audio from the audio shield
  * Line-In pins and send it to the Line-Out pins and headphone jack.
+ * Uses two AudioAnalyzeOscilloscope objects with 1024 audio sample depth
  *
- * This example code is in the public domain.
  */
+
 #include <ILI9341_t3.h>
 #include <font_Arial.h> // from ILI9341_t3
 #include "AudioAnalyzeOscilloscope.h"
