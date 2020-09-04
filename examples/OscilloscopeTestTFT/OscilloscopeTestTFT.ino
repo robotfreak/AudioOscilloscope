@@ -1,12 +1,24 @@
 /*
-   A simple hardware test which receives audio from the audio shield
+   Audio Oscilloscope Test: shows different mode of operations
+   Receives audio from the audio shield
    Line-In pins and send it to the Line-Out pins and headphone jack.
-
-   This example code is in the public domain.
+   A button on Input 0 switches between the differnt modes 
+   (2ch osci, gonio, fft, peak rms, gonio+peak rms).
 */
+#include <Audio.h>
+#include <Wire.h>
+#include <SPI.h>
+#include <SD.h>
+#include <SerialFlash.h>
+
 #include <ILI9341_t3.h>
 #include <font_Arial.h> // from ILI9341_t3
+#include <Bounce.h>
 #include "AudioAnalyzeOscilloscope.h"
+
+Bounce button0 = Bounce(0, 15);
+Bounce button1 = Bounce(1, 15);  // 15 = 15 ms debounce time
+Bounce button2 = Bounce(2, 15);
 
 // For optimized ILI9341_t3 library
 #define TFT_DC      5
@@ -16,11 +28,6 @@
 //ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC, TFT_RST, TFT_MOSI, TFT_SCLK, TFT_MISO);
 ILI9341_t3 tft = ILI9341_t3(TFT_CS, TFT_DC);
 
-#include <Audio.h>
-#include <Wire.h>
-#include <SPI.h>
-#include <SD.h>
-#include <SerialFlash.h>
 
 // GUItool: begin automatically generated code
 AudioInputI2S            i2s1;           //xy=985.7142677307129,418.5714530944824
@@ -42,9 +49,21 @@ AudioConnection          patchCord8(i2s1, 1, scope2, 0);
 AudioControlSGTL5000     sgtl5000_1;     //xy=1166.2856674194336,594.9999332427979
 // GUItool: end automatically generated code
 
+#define NO_OF_BUFFERS 8
+int pbCount = 0;
+int cbCount = 1;
+int16_t prevBufferLt[NO_OF_BUFFERS][AUDIO_BLOCK_SAMPLES * NO_OF_BLOCKS];
+int16_t prevBufferRt[NO_OF_BUFFERS][AUDIO_BLOCK_SAMPLES * NO_OF_BLOCKS];
 
 const int myInput = AUDIO_INPUT_LINEIN;
 //const int myInput = AUDIO_INPUT_MIC;
+
+void initPrevBuffer(void) {
+  memset(&prevBufferLt[0][0], 0, NO_OF_BUFFERS*AUDIO_BLOCK_SAMPLES*NO_OF_BLOCKS*2);  
+  memset(&prevBufferRt[0][0], 0, NO_OF_BUFFERS*AUDIO_BLOCK_SAMPLES*NO_OF_BLOCKS*2); 
+  pbCount = 0; 
+  cbCount = 1;
+}
 
 void printFFTNumber(int i, float n) {
 
@@ -90,45 +109,82 @@ void plotFFT(void)
 void plot2ChanOsci(void)
 {
   int x;
-  int y = 0;
+  int lt,rt;
+  int oldlt, oldrt;
 
-  tft.fillScreen(ILI9341_BLACK);
+  if (scope1.available())
+    scope1.update();
+  if (scope2.available())
+    scope2.update();
+  //tft.fillScreen(ILI9341_BLACK);
   for (x = 0; x < 256; x++) {
-    if (x%8==0) {
-      tft.drawPixel(x + 20,64, ILI9341_WHITE);
-      tft.drawPixel(x + 20,192, ILI9341_WHITE);
+    if (x % 8 == 0) {
+      tft.drawPixel(x + 20, 64, ILI9341_WHITE);
+      tft.drawPixel(x + 20, 192, ILI9341_WHITE);
     }
-    y = scope1.buffer[x] >> 8;;
-    tft.drawPixel(x + 20, y + 64, ILI9341_GREEN);
-    y = scope2.buffer[x] >> 8;;
-    tft.drawPixel(x + 20, y + 192, ILI9341_GREEN);
+    oldlt = prevBufferLt[cbCount][x];
+    tft.drawPixel(x + 20, oldlt + 64, ILI9341_BLACK);
+    oldrt = prevBufferRt[cbCount][x];
+    tft.drawPixel(x + 20, oldrt + 192, ILI9341_BLACK);
+
+    lt = scope1.buffer[x] >> 8;;
+    tft.drawPixel(x + 20, lt + 64, ILI9341_GREEN);
+    rt = scope2.buffer[x] >> 8;;
+    tft.drawPixel(x + 20, rt + 192, ILI9341_GREEN);
+    prevBufferLt[pbCount][x] = lt;
+    prevBufferRt[pbCount][x] = rt;
   }
+  pbCount++;
+  if (pbCount >= NO_OF_BUFFERS) pbCount = 0;
+  cbCount++;
+  if (cbCount >= NO_OF_BUFFERS) cbCount = 0;
+
 }
 
 void plotGoniometer(void)
 {
-  int i,l;
+  int i, l;
   int x = 0;
   int y = 0;
   int newx, newy;
+  int oldx, oldy;
 
-  tft.fillRect(0, 0, 256, 240, ILI9341_BLACK);
+  if (scope1.available())
+    scope1.update();
+  if (scope2.available())
+    scope2.update();
+  //tft.fillRect(0, 0, 256, 240, ILI9341_BLACK);
+  //c1 = scope1.getCount();
+  //c2 = scope2.getCount();
   for (i = 0; i < 256; i++) {
     x = (scope1.buffer[i] >> 8);
-    //tft.drawPixel(x+20, y+64, ILI9341_GREEN);
     y = (scope2.buffer[i] >> 8);
     newx = x * 29 / 41 - y * 29 / 41;
     newy = y * 29 / 41 + x * 29 / 41;
+    //x = (scope1.buffer[i] >> 8);
+    //y = (scope2.buffer][i] >> 8);
+    oldx = prevBufferLt[cbCount][i];
+    oldy = prevBufferRt[cbCount][i];
+    tft.drawPixel(oldx + 128, oldy + 128, ILI9341_BLACK);
+    
     tft.drawPixel(newx + 128, newy + 128, ILI9341_GREEN);
-    if (i%8==0) {
-      tft.drawPixel(i,128, ILI9341_WHITE);
+    prevBufferLt[pbCount][i] = newx;
+    prevBufferRt[pbCount][i] = newy;
+   
+    if (i % 8 == 0) {
+      tft.drawPixel(i, 128, ILI9341_WHITE);
     }
-    if (i==128) {
-      for(l=0;l<240;l+=8) {
-        tft.drawPixel(i,l, ILI9341_WHITE);
+    if (i == 128) {
+      for (l = 0; l < 240; l += 8) {
+        tft.drawPixel(i, l, ILI9341_WHITE);
       }
     }
   }
+  pbCount++;
+  if (pbCount >= NO_OF_BUFFERS) pbCount = 0;
+  cbCount++;
+  if (cbCount >= NO_OF_BUFFERS) cbCount = 0;
+
 }
 
 elapsedMillis msecs = 0;
@@ -172,11 +228,15 @@ int mode = 0;
 void setup() {
   // Audio connections require memory to work.  For more
   // detailed information, see the MemoryAndCpuUsage example
+  Serial.begin(9600);
   AudioMemory(12);
   tft.begin();
   tft.setRotation(3);
   tft.fillScreen(ILI9341_BLACK);
   tft.setFont(Arial_24);
+  pinMode(0, INPUT_PULLUP);
+  pinMode(1, INPUT_PULLUP);
+  pinMode(2, INPUT_PULLUP);
 
   // Enable the audio shield, select input, and enable output
   sgtl5000_1.enable();
@@ -189,22 +249,31 @@ void setup() {
 
 
 void loop() {
+  button0.update();
+  button1.update();
+  button2.update();
+#if 0
   currentMillis = millis();
   if (currentMillis - previousMillis > 10000)
   {
     previousMillis = currentMillis;
     tft.fillScreen(ILI9341_BLACK);
+    initPrevBuffer();
     mode++;
   }
+#endif
+  // Left changes the TFT mode
+  if (button0.fallingEdge()) {
+    tft.fillScreen(ILI9341_BLACK);
+    initPrevBuffer();
+    mode++;
+  }
+  
   switch (mode) {
     case 0:
-      scope1.update();
-      scope2.update();
       plot2ChanOsci();
       break;
     case 1:
-      scope1.update();
-      scope2.update();
       plotGoniometer();
       break;
     case 2:
@@ -214,8 +283,6 @@ void loop() {
       plotRMS();
       break;
     case 4:
-      scope1.update();
-      scope2.update();
       plotGoniometer();
       plotRMS();
       break;

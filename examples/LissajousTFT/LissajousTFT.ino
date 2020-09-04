@@ -1,6 +1,8 @@
 /* LissajousTFT: shows lissajous figures on a TFT screen
-* two sinus waveforms are generated with different parameters
-* The audio streams are used as source for the Goniometer.
+* two waveforms are generated with different parameters.
+* Frequency can be adjusted with two potentiometers (A2,A3)
+* A button on Pin 0 is used to switch between waveforms
+* The two audio streams are used as source for the Goniometer.
 * Uses two AudioAnalyzeOscilloscope objects with 1024 audio sample depth
 *
 * Example based on: */
