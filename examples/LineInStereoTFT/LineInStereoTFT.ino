@@ -72,8 +72,8 @@ void setup() {
 elapsedMillis volmsec=0;
 
 void loop() {
-  scope1.update();
-  scope2.update();
+  //scope1.update();
+  //scope2.update();
   plotXYDataPoints();
 
   // every 50 ms, adjust the volume

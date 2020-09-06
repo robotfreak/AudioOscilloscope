@@ -97,7 +97,7 @@ void plotFFT(void)
   if (fft256_1.available()) {
 
     Serial.print("FFT: ");
-    for (int i = 0; i < 16; i++) { // 0-25  -->  DC to 1.25 kHz
+    for (int i = 0; i < 12; i++) { // 0-25  -->  DC to 1.25 kHz
       float n = fft256_1.read(i);
       printFFTNumber(i, n);
     }
@@ -112,10 +112,8 @@ void plot2ChanOsci(void)
   int lt,rt;
   int oldlt, oldrt;
 
-  if (scope1.available())
-    scope1.update();
-  if (scope2.available())
-    scope2.update();
+  if (!scope1.available() && !scope2.available()) return;
+  //  ; //scope2.update();
   //tft.fillScreen(ILI9341_BLACK);
   for (x = 0; x < 256; x++) {
     if (x % 8 == 0) {
@@ -149,10 +147,10 @@ void plotGoniometer(void)
   int newx, newy;
   int oldx, oldy;
 
-  if (scope1.available())
-    scope1.update();
-  if (scope2.available())
-    scope2.update();
+  //if (scope1.available())
+  //  ;//scope1.update();
+  //if (scope2.available())
+  //  ;//scope2.update();
   //tft.fillRect(0, 0, 256, 240, ILI9341_BLACK);
   //c1 = scope1.getCount();
   //c2 = scope2.getCount();
@@ -268,7 +266,8 @@ void loop() {
     initPrevBuffer();
     mode++;
   }
-  
+
+  elapsedMicros useconds;
   switch (mode) {
     case 0:
       plot2ChanOsci();
@@ -286,9 +285,14 @@ void loop() {
       plotGoniometer();
       plotRMS();
       break;
+    case 5:
+      plotFFT();
+      plotRMS();
+      break;
     default:
       mode = 0;
       break;
   }
+  Serial.println(useconds);
 
 }

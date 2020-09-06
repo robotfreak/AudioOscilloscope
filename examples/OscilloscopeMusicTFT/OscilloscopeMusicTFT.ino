@@ -80,10 +80,10 @@ void plotXY(void)
   int newx, newy;
   int oldx, oldy;
 
-  if (scope1.available())
-    scope1.update();
-  if (scope2.available())
-    scope2.update();
+  //if (scope1.available())
+  //  scope1.update();
+  //if (scope2.available())
+  //  scope2.update();
   //tft.fillRect(0, 0, 256, 240, ILI9341_BLACK);
   //c1 = scope1.getCount();
   //c2 = scope2.getCount();
